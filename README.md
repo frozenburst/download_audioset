@@ -1,3 +1,12 @@
+# frozen's words
+
+This is fork from jim's repo. Which is for downloading waveform of audioset from source.
+I made a few revision
+* Fix the sortlist bug.
+* Snippedfile might have no value in some case. (This is due to the original author only update the scripts in unbalanced python file.)
+
+At 2020/11/09
+
 # download_audioset
 
 This repository makes it really easy to download [Audioset](https://research.google.com/audioset/), the open source library released by Google for speech object detection research. 

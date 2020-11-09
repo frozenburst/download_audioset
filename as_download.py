@@ -76,6 +76,8 @@ If you would like to work with us let us know @ develop@neurolex.co.
 import pafy, os, shutil, time, ffmpy
 import pandas as pd
 import soundfile as sf
+from natsort import natsorted
+from tqdm import tqdm
 
 ################################################################################
 ##                            HELPER FUNCTIONS                                ##
@@ -99,7 +101,9 @@ def convertlabels(sortlist,labels,textlabels):
 
 def download_audio(link):
     listdir=os.listdir()
-    os.system("youtube-dl -f 'bestaudio[ext=m4a]' '%s'"%(link))
+    cmd = f"youtube-dl -f 'bestaudio[ext=m4a]' '{link}'"
+    print(cmd)
+    os.system(cmd)
     listdir2=os.listdir()
     filename=''
     for i in range(len(listdir2)):
@@ -146,74 +150,88 @@ except:
     os.mkdir(os.getcwd()+'/audiosetdata')
     os.chdir(os.getcwd()+'/audiosetdata')
 
+
+# Copy from unbalance python file. Should implement the check of existed file as well.
+existing_wavfiles=list()
 for i in range(len(textlabels)):
     try:
         os.mkdir(textlabels[i])
     except:
-        pass
+        os.chdir(textlabels[i])
+        listdir=os.listdir()
+        for j in range(len(listdir)):
+            if listdir[j].endswith('.wav'):
+                existing_wavfiles.append(listdir[j])
+        os.chdir(defaultdir2)
+
+# get last file checkpoint to leave off
+existing_wavfiles=natsorted(existing_wavfiles)
+print(existing_wavfiles)
+try:
+    lastfile=int(existing_wavfiles[-1].split('.')[0][7:])
+except:
+    lastfile=0
 
 #iterate through entire CSV file, look for '--' if found, find index, delete section, then go to next index
 slink='https://www.youtube.com/watch?v='
 
-for i in range(len(yid)):
-    link=slink+yid[i]
-    start=ystart[i]
-    end=yend[i]
-    clabels=convertlabels(ylabels[i],labels,textlabels)
+for i in tqdm(range(len(yid))):
+    if i < lastfile:
+        print('skipping, already downloaded file...')
+    else:
+        link=slink+yid[i]
+        start=float(ystart[i])
+        end=float(yend[i])
+        # print(ylabels[i])
+        clabels=convertlabels(ylabels[i],labels,textlabels)
+        # print(clabels)
 
-    for j in range(len(clabels)):
+        if clabels != []:
 
-        #change to the right directory
-        newdir=defaultdir2+clabels[j]+'/'
-        os.chdir(newdir)
-
-        if j ==0:
-
+            #change to the right directory
+            newdir=defaultdir2+clabels[0]+'/'
+            os.chdir(newdir)
             #if it is the first download, pursue this path to download video
             lastdir=os.getcwd()+'/'
 
-            try:
-                # use YouTube DL to download audio
-                filename=download_audio(link)
-                extension='.m4a'
-                #get file extension and convert to .wav for processing later
-                os.rename(filename,'%s_start_%s_end_%s%s'%(str(i),start,end,extension))
-                filename='%s_start_%s_end_%s%s'%(str(i),start,end,extension)
-                if extension not in ['.wav']:
-                    xindex=filename.find(extension)
-                    filename=filename[0:xindex]
-                    ff=ffmpy.FFmpeg(
-                        inputs={filename+extension:None},
-                        outputs={filename+'.wav':None}
-                        )
-                    ff.run()
-                    os.remove(filename+extension)
+            if 'snipped'+str(i)+'.wav' not in os.listdir():
 
-                file=filename+'.wav'
-                data,samplerate=sf.read(file)
-                totalframes=len(data)
-                totalseconds=totalframes/samplerate
-                startsec=start
-                startframe=samplerate*startsec
-                endsec=end
-                endframe=samplerate*endsec
-                sf.write('snipped'+file, data[startframe:endframe], samplerate)
-                snippedfile='snipped'+file
-                os.remove(file)
+                try:
+                    # use YouTube DL to download audio
+                    filename=download_audio(link)
+                    extension='.m4a'
+                    #get file extension and convert to .wav for processing later
+                    os.rename(filename,'%s%s'%(str(i),extension))
+                    filename='%s%s'%(str(i),extension)
+                    if extension not in ['.wav']:
+                        xindex=filename.find(extension)
+                        filename=filename[0:xindex]
+                        ff=ffmpy.FFmpeg(
+                            inputs={filename+extension:None},
+                            outputs={filename+'.wav':None}
+                            )
+                        ff.run()
+                        os.remove(filename+extension)
 
-            except:
-                print('no urls')
+                    file=filename+'.wav'
+                    data,samplerate=sf.read(file)
+                    totalframes=len(data)
+                    totalseconds=totalframes/samplerate
+                    startsec=start
+                    startframe=samplerate*startsec
+                    endsec=end
+                    endframe=samplerate*endsec
+                    # print(startframe)
+                    # print(endframe)
+                    sf.write('snipped'+file, data[int(startframe):int(endframe)], samplerate)
+                    snippedfile='snipped'+file
+                    os.remove(file)
 
-        else:
-            #copy if already downloaded to proper labeled directory
-            #this will eliminated repeated youtube calls to download
-            print('copying file to %s'%(newdir+snippedfile))
-            try:
-                shutil.copy(lastdir+snippedfile,newdir+snippedfile)
-            except:
-                print('error copying file')
+                except:
+                    print('no urls')
 
-    #sleep 5 seconds to prevent IP from getting banned
-    time.sleep(5)
-
+                #sleep 3 second sleep to prevent IP from getting banned
+                time.sleep(2)
+            else:
+                print('skipping, already downloaded file...')
 
