@@ -4,6 +4,9 @@ This is fork from jim's repo. Which is for downloading waveform of audioset from
 I made a few revision
 * Fix the sortlist bug.
 * Snippedfile might have no value in some case. (This is due to the original author only update the scripts in unbalanced python file.)
+* Lots of modify for my easier usage.
+* (Important) Should keep in mind that here use the xlsx file instead of csv format.
+* At last, there is only one python script for downloading. See the usage before scripts for cml instruction.
 
 At 2020/11/09
 
